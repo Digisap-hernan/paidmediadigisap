@@ -1,9 +1,16 @@
 /** @type {import('next').NextConfig} */
-// API_URL is the URL where the FastAPI backend is reachable.
-// Local dev: defaults to http://localhost:8000.
-// On Vercel: set API_URL in Project Settings → Environment Variables
-// to your backend deployment, e.g. https://paid-media-backend.vercel.app
-const API_URL = process.env.API_URL || 'http://localhost:8000';
+// Normalize API_URL so common mistakes (missing https://, trailing slash,
+// stray whitespace) don't break Next.js' rewrite validation.
+function normalizeApiUrl(raw) {
+  let url = (raw || 'http://localhost:8000').trim();
+  if (!/^https?:\/\//i.test(url)) {
+    url = 'https://' + url;
+  }
+  url = url.replace(/\/+$/, ''); // strip trailing slashes
+  return url;
+}
+
+const API_URL = normalizeApiUrl(process.env.API_URL);
 
 const nextConfig = {
   // For the MVP we don't want TS/ESLint warnings to block deploys — local dev
