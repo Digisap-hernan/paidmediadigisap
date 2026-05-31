@@ -8,6 +8,10 @@ class DashboardKPI(BaseModel):
     overdue_tasks: int
     open_incidents: int
     qa_completion_pct: float
+    total_campaigns: int
+    qa_completed_pct: float
+    by_stage: dict[str, int]
+    by_severity: dict[str, int]
 
 
 class RiskyCampaign(BaseModel):

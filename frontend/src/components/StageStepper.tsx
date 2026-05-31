@@ -18,6 +18,7 @@ export default function StageStepper({
   const [loading, setLoading] = useState(false);
   const currentIdx = STAGES.indexOf(currentStage);
   const isLast = currentIdx === STAGES.length - 1;
+  const nextStage = isLast ? null : STAGES[currentIdx + 1];
 
   async function handleAdvance() {
     setError(null);
@@ -75,7 +76,7 @@ export default function StageStepper({
           disabled={isLast || loading}
           className="inline-flex items-center rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {isLast ? 'Última etapa' : loading ? 'Avanzando…' : 'Avanzar a siguiente etapa'}
+          {isLast ? 'Última etapa' : loading ? 'Avanzando…' : `Avanzar a ${STAGE_LABEL[nextStage!]}`}
         </button>
       </div>
       {error && (

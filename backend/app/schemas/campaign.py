@@ -4,9 +4,16 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict
 
 
-Platform = Literal["meta", "google_ads", "linkedin", "mixed"]
-CampaignType = Literal["META_LEADGEN", "GADS_SEARCH_LEADGEN"]
-Objective = Literal["lead_gen", "ecommerce", "awareness"]
+Platform = Literal["meta", "google_ads", "linkedin", "tiktok", "mixed"]
+CampaignType = Literal[
+    "META_LEADGEN",
+    "GADS_SEARCH_LEADGEN",
+    "GADS_PMAX",
+    "LINKEDIN_LEADGEN",
+    "TIKTOK_AWARENESS",
+    "MIXED_FULLFUNNEL",
+]
+Objective = Literal["lead_gen", "ecommerce", "awareness", "conversions"]
 Stage = Literal["intake", "audit", "strategy", "build", "qa", "launch", "operate"]
 CampaignStatus = Literal["active", "paused", "closed"]
 

@@ -38,3 +38,5 @@ class IncidentRead(IncidentBase):
     id: int
     opened_at: datetime
     closed_at: datetime | None
+    client_name: str | None = None
+    campaign_name: str | None = None

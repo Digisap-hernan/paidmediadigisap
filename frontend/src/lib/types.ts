@@ -7,9 +7,15 @@ export type Stage =
   | 'launch'
   | 'operate';
 
-export type Platform = 'meta' | 'google_ads' | 'linkedin' | 'mixed';
-export type CampaignType = 'META_LEADGEN' | 'GADS_SEARCH_LEADGEN';
-export type Objective = 'lead_gen' | 'ecommerce' | 'awareness';
+export type Platform = 'meta' | 'google_ads' | 'linkedin' | 'tiktok' | 'mixed';
+export type CampaignType =
+  | 'META_LEADGEN'
+  | 'GADS_SEARCH_LEADGEN'
+  | 'GADS_PMAX'
+  | 'LINKEDIN_LEADGEN'
+  | 'TIKTOK_AWARENESS'
+  | 'MIXED_FULLFUNNEL';
+export type Objective = 'lead_gen' | 'ecommerce' | 'awareness' | 'conversions';
 export type CampaignStatus = 'active' | 'paused' | 'closed';
 
 export type ClientStatus = 'active' | 'paused' | 'archived';
@@ -96,6 +102,8 @@ export interface Incident {
   opened_at: string;
   target_resolution_at: string | null;
   closed_at: string | null;
+  client_name?: string | null;
+  campaign_name?: string | null;
 }
 
 export interface Task {
@@ -123,11 +131,15 @@ export interface ChangelogEntry {
 }
 
 export interface DashboardKPI {
+  total_campaigns?: number;
   active_campaigns: number;
   risky_campaigns: number;
   overdue_tasks: number;
   open_incidents: number;
   qa_completion_pct: number;
+  qa_completed_pct?: number;
+  by_stage?: Record<string, number>;
+  by_severity?: Record<string, number>;
 }
 
 export interface RiskyCampaign {

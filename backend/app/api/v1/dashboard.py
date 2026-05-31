@@ -17,6 +17,8 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 OPEN_INCIDENT_STATUSES = ["new", "investigating", "mitigated"]
 RISKY_HEALTH_THRESHOLD = 60
+CAMPAIGN_STAGES = ["intake", "audit", "strategy", "build", "qa", "launch", "operate"]
+INCIDENT_SEVERITIES = ["low", "medium", "high", "critical"]
 
 
 @router.get("/kpi", response_model=DashboardKPI)
@@ -43,15 +45,39 @@ def get_kpi(db: Session = Depends(get_db)) -> DashboardKPI:
         db.query(Incident).filter(Incident.status.in_(OPEN_INCIDENT_STATUSES)).count()
     )
 
-    qa_pct_row = db.query(func.avg(Checklist.completion_pct)).filter(Checklist.type == "qa").scalar()
-    qa_completion_pct = float(qa_pct_row) if qa_pct_row is not None else 0.0
+    total_campaigns = len(campaigns)
+
+    qa_checklists = db.query(Checklist).filter(Checklist.type == "qa").all()
+    qa_total = len(qa_checklists)
+    qa_complete = sum(1 for cl in qa_checklists if cl.status == "complete")
+    qa_completed_pct = round((qa_complete / qa_total) * 100, 1) if qa_total > 0 else 0.0
+
+    by_stage = {stage: 0 for stage in CAMPAIGN_STAGES}
+    for c in campaigns:
+        if c.stage in by_stage:
+            by_stage[c.stage] += 1
+
+    by_severity = {sev: 0 for sev in INCIDENT_SEVERITIES}
+    open_incident_rows = (
+        db.query(Incident.severity, func.count(Incident.id))
+        .filter(Incident.status.in_(OPEN_INCIDENT_STATUSES))
+        .group_by(Incident.severity)
+        .all()
+    )
+    for sev, count in open_incident_rows:
+        if sev in by_severity:
+            by_severity[sev] = count
 
     return DashboardKPI(
         active_campaigns=active_campaigns,
         risky_campaigns=risky_campaigns,
         overdue_tasks=overdue_tasks,
         open_incidents=open_incidents,
-        qa_completion_pct=round(qa_completion_pct, 1),
+        qa_completion_pct=qa_completed_pct,
+        total_campaigns=total_campaigns,
+        qa_completed_pct=qa_completed_pct,
+        by_stage=by_stage,
+        by_severity=by_severity,
     )
 
 

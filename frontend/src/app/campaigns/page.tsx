@@ -5,10 +5,17 @@ import Link from 'next/link';
 import Header from '@/components/Header';
 import DataTable from '@/components/DataTable';
 import HealthBadge from '@/components/HealthBadge';
-import { STAGES } from '@/constants/stages';
+import {
+  STAGES,
+  STAGE_LABEL,
+  PLATFORMS,
+  PLATFORM_LABEL,
+  CAMPAIGN_STATUS_LABEL,
+} from '@/constants/stages';
 import { createCampaign, listCampaigns, listClients } from '@/lib/api';
 import type {
   Campaign,
+  CampaignStatus,
   CampaignType,
   Client,
   Objective,
@@ -16,9 +23,11 @@ import type {
   Stage,
 } from '@/lib/types';
 
-const PLATFORMS: Platform[] = ['meta', 'google_ads', 'linkedin', 'mixed'];
 const TYPES: CampaignType[] = ['META_LEADGEN', 'GADS_SEARCH_LEADGEN'];
 const OBJECTIVES: Objective[] = ['lead_gen', 'ecommerce', 'awareness'];
+const STATUSES: CampaignStatus[] = ['active', 'paused', 'closed'];
+
+const EMPTY_FILTERS = { stage: '', status: '', platform: '' };
 
 export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -27,7 +36,8 @@ export default function CampaignsPage() {
     stage: string;
     status: string;
     platform: string;
-  }>({ stage: '', status: '', platform: '' });
+  }>(EMPTY_FILTERS);
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<{
@@ -46,7 +56,13 @@ export default function CampaignsPage() {
     budget_total: '',
   });
 
+  const hasActiveFilters = Boolean(
+    filters.stage || filters.status || filters.platform
+  );
+
   async function refresh() {
+    setLoading(true);
+    setError(null);
     try {
       const params: Record<string, string> = {};
       if (filters.stage) params.stage = filters.stage;
@@ -55,6 +71,8 @@ export default function CampaignsPage() {
       setCampaigns(await listCampaigns(params));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error');
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -111,25 +129,49 @@ export default function CampaignsPage() {
         }
       />
       <div className="p-8 space-y-4">
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap items-end gap-3">
           <Filter
             label="Etapa"
             value={filters.stage}
-            options={['', ...STAGES]}
+            options={[
+              { value: '', label: 'Todas' },
+              ...STAGES.map((s) => ({ value: s, label: STAGE_LABEL[s] })),
+            ]}
             onChange={(v) => setFilters({ ...filters, stage: v })}
           />
           <Filter
             label="Estado"
             value={filters.status}
-            options={['', 'active', 'paused', 'closed']}
+            options={[
+              { value: '', label: 'Todos' },
+              ...STATUSES.map((s) => ({
+                value: s,
+                label: CAMPAIGN_STATUS_LABEL[s] ?? s,
+              })),
+            ]}
             onChange={(v) => setFilters({ ...filters, status: v })}
           />
           <Filter
             label="Plataforma"
             value={filters.platform}
-            options={['', ...PLATFORMS]}
+            options={[
+              { value: '', label: 'Todas' },
+              ...PLATFORMS.map((p) => ({
+                value: p,
+                label: PLATFORM_LABEL[p] ?? p,
+              })),
+            ]}
             onChange={(v) => setFilters({ ...filters, platform: v })}
           />
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={() => setFilters(EMPTY_FILTERS)}
+              className="rounded-md border border-slate-200 bg-white px-3 py-1 text-sm text-slate-600 hover:bg-slate-50"
+            >
+              Limpiar filtros
+            </button>
+          )}
         </div>
 
         {showForm && (
@@ -171,7 +213,9 @@ export default function CampaignsPage() {
                 className="input"
               >
                 {PLATFORMS.map((p) => (
-                  <option key={p}>{p}</option>
+                  <option key={p} value={p}>
+                    {PLATFORM_LABEL[p] ?? p}
+                  </option>
                 ))}
               </select>
             </Field>
@@ -223,32 +267,51 @@ export default function CampaignsPage() {
 
         {error && (
           <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {error}
+            No se pudieron cargar las campañas: {error}
           </div>
         )}
 
-        <DataTable
-          rows={campaigns}
-          emptyMessage="No hay campañas con esos filtros"
-          columns={[
-            {
-              header: 'Nombre',
-              accessor: (c) => (
-                <Link
-                  href={`/campaigns/${c.id}`}
-                  className="font-medium text-brand-700 hover:underline"
-                >
-                  {c.name}
-                </Link>
-              ),
-            },
-            { header: 'Plataforma', accessor: (c) => c.platform },
-            { header: 'Tipo', accessor: (c) => c.campaign_type },
-            { header: 'Etapa', accessor: (c) => c.stage as Stage },
-            { header: 'Estado', accessor: (c) => c.status },
-            { header: 'Health', accessor: (c) => <HealthBadge score={c.health_score} /> },
-          ]}
-        />
+        {loading ? (
+          <div className="rounded-lg border border-slate-200 bg-white p-6 text-sm text-slate-500">
+            Cargando campañas…
+          </div>
+        ) : (
+          <DataTable
+            rows={campaigns}
+            emptyMessage={
+              hasActiveFilters
+                ? 'No hay campañas con esos filtros'
+                : 'No hay campañas creadas'
+            }
+            columns={[
+              {
+                header: 'Nombre',
+                accessor: (c) => (
+                  <Link
+                    href={`/campaigns/${c.id}`}
+                    className="font-medium text-brand-700 hover:underline"
+                  >
+                    {c.name}
+                  </Link>
+                ),
+              },
+              {
+                header: 'Plataforma',
+                accessor: (c) => PLATFORM_LABEL[c.platform] ?? c.platform,
+              },
+              { header: 'Tipo', accessor: (c) => c.campaign_type },
+              {
+                header: 'Etapa',
+                accessor: (c) => STAGE_LABEL[c.stage as Stage] ?? c.stage,
+              },
+              {
+                header: 'Estado',
+                accessor: (c) => CAMPAIGN_STATUS_LABEL[c.status] ?? c.status,
+              },
+              { header: 'Health', accessor: (c) => <HealthBadge score={c.health_score} /> },
+            ]}
+          />
+        )}
       </div>
 
       <style jsx>{`
@@ -273,7 +336,7 @@ function Filter({
 }: {
   label: string;
   value: string;
-  options: string[];
+  options: { value: string; label: string }[];
   onChange: (v: string) => void;
 }) {
   return (
@@ -285,8 +348,8 @@ function Filter({
         className="rounded-md border border-slate-200 bg-white px-2 py-1 text-sm"
       >
         {options.map((o) => (
-          <option key={o} value={o}>
-            {o || 'todos'}
+          <option key={o.value} value={o.value}>
+            {o.label}
           </option>
         ))}
       </select>

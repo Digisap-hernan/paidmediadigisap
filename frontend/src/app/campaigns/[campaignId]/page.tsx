@@ -18,6 +18,12 @@ import {
   listIncidents,
   listTasks,
 } from '@/lib/api';
+import {
+  CAMPAIGN_STATUS_LABEL,
+  OBJECTIVE_LABEL,
+  PLATFORM_LABEL,
+  STAGE_LABEL,
+} from '@/constants/stages';
 import type {
   Campaign,
   ChangelogEntry,
@@ -68,18 +74,22 @@ export default function CampaignDetailPage() {
     return (
       <div className="p-8">
         <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-          {error}
+          No se pudo cargar la campaña: {error}
         </div>
       </div>
     );
   }
-  if (!campaign) return <div className="p-8 text-sm text-slate-500">Cargando…</div>;
+  if (!campaign) return <div className="p-8 text-sm text-slate-500">Cargando campaña…</div>;
+
+  const platformLabel = PLATFORM_LABEL[campaign.platform] ?? campaign.platform;
+  const objectiveLabel = OBJECTIVE_LABEL[campaign.objective] ?? campaign.objective;
+  const statusLabel = CAMPAIGN_STATUS_LABEL[campaign.status] ?? campaign.status;
 
   return (
     <>
       <Header
         title={campaign.name}
-        subtitle={`${campaign.platform} · ${campaign.campaign_type} · ${campaign.objective}`}
+        subtitle={`${platformLabel} · ${campaign.campaign_type} · ${objectiveLabel}`}
         actions={
           <div className="flex items-center gap-3">
             <HealthBadge score={campaign.health_score} />
@@ -125,13 +135,22 @@ export default function CampaignDetailPage() {
           ))}
         </div>
 
-        {tab === 'summary' && <SummaryTab campaign={campaign} checklists={checklists} />}
+        {tab === 'summary' && (
+          <SummaryTab
+            campaign={campaign}
+            checklists={checklists}
+            platformLabel={platformLabel}
+            objectiveLabel={objectiveLabel}
+            statusLabel={statusLabel}
+          />
+        )}
         {tab === 'checklists' && (
           <div className="space-y-4">
             {checklists.length === 0 ? (
-              <div className="rounded-lg border border-slate-200 bg-white p-6 text-sm text-slate-500">
-                Esta campaña no tiene checklists.
-              </div>
+              <EmptyState
+                title="Sin checklists todavía"
+                description="Esta campaña aún no tiene checklists asignados. Avanza de etapa para generarlos automáticamente."
+              />
             ) : (
               checklists.map((c) => (
                 <ChecklistView key={c.id} checklist={c} onUpdated={refresh} />
@@ -139,7 +158,16 @@ export default function CampaignDetailPage() {
             )}
           </div>
         )}
-        {tab === 'tasks' && <TaskList tasks={tasks} />}
+        {tab === 'tasks' && (
+          tasks.length === 0 ? (
+            <EmptyState
+              title="Sin tareas asignadas"
+              description="No hay tareas creadas para esta campaña. Crea una nueva tarea desde el módulo de Tareas."
+            />
+          ) : (
+            <TaskList tasks={tasks} />
+          )
+        )}
         {tab === 'incidents' && <IncidentsTab incidents={incidents} />}
         {tab === 'changelog' && (
           <ChangelogTab
@@ -157,18 +185,25 @@ export default function CampaignDetailPage() {
 function SummaryTab({
   campaign,
   checklists,
+  platformLabel,
+  objectiveLabel,
+  statusLabel,
 }: {
   campaign: Campaign;
   checklists: Checklist[];
+  platformLabel: string;
+  objectiveLabel: string;
+  statusLabel: string;
 }) {
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-      <Info label="Plataforma" value={campaign.platform} />
+      <Info label="Plataforma" value={platformLabel} />
       <Info label="Tipo de campaña" value={campaign.campaign_type} />
-      <Info label="Objetivo" value={campaign.objective} />
-      <Info label="Status" value={campaign.status} />
+      <Info label="Objetivo" value={objectiveLabel} />
+      <Info label="Estado" value={statusLabel} />
+      <Info label="Etapa actual" value={STAGE_LABEL[campaign.stage] ?? campaign.stage} />
       <Info
-        label="Budget total"
+        label="Presupuesto total"
         value={campaign.budget_total ? `$${campaign.budget_total}` : '—'}
       />
       <Info
@@ -188,7 +223,9 @@ function SummaryTab({
               </li>
             ))}
             {checklists.length === 0 && (
-              <li className="text-sm text-slate-500">Sin checklists</li>
+              <li className="text-sm text-slate-500">
+                Aún no hay checklists para esta campaña.
+              </li>
             )}
           </ul>
         </div>
@@ -206,12 +243,28 @@ function Info({ label, value }: { label: string; value: string | number }) {
   );
 }
 
+function EmptyState({
+  title,
+  description,
+}: {
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="rounded-lg border border-dashed border-slate-300 bg-white p-8 text-center">
+      <div className="text-sm font-semibold text-slate-900">{title}</div>
+      <p className="mt-1 text-sm text-slate-500">{description}</p>
+    </div>
+  );
+}
+
 function IncidentsTab({ incidents }: { incidents: Incident[] }) {
   if (incidents.length === 0) {
     return (
-      <div className="rounded-lg border border-slate-200 bg-white p-6 text-sm text-slate-500">
-        Sin incidentes para esta campaña.
-      </div>
+      <EmptyState
+        title="Sin incidentes registrados"
+        description="Esta campaña no tiene incidentes activos. Cuando se reporte alguno, aparecerá aquí."
+      />
     );
   }
   return (
@@ -277,7 +330,7 @@ function ChangelogTab({
         <h3 className="text-sm font-semibold text-slate-900">Nueva entrada de changelog</h3>
         <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
           <label className="block">
-            <span className="mb-1 block text-xs font-medium text-slate-600">change_type</span>
+            <span className="mb-1 block text-xs font-medium text-slate-600">Tipo de cambio</span>
             <input
               value={form.change_type}
               onChange={(e) => setForm({ ...form, change_type: e.target.value })}
@@ -287,7 +340,7 @@ function ChangelogTab({
             />
           </label>
           <label className="block">
-            <span className="mb-1 block text-xs font-medium text-slate-600">description *</span>
+            <span className="mb-1 block text-xs font-medium text-slate-600">Descripción *</span>
             <input
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -296,7 +349,7 @@ function ChangelogTab({
             />
           </label>
           <label className="block">
-            <span className="mb-1 block text-xs font-medium text-slate-600">hypothesis</span>
+            <span className="mb-1 block text-xs font-medium text-slate-600">Hipótesis</span>
             <input
               value={form.hypothesis}
               onChange={(e) => setForm({ ...form, hypothesis: e.target.value })}
@@ -304,7 +357,7 @@ function ChangelogTab({
             />
           </label>
           <label className="block">
-            <span className="mb-1 block text-xs font-medium text-slate-600">expected_impact</span>
+            <span className="mb-1 block text-xs font-medium text-slate-600">Impacto esperado</span>
             <input
               value={form.expected_impact}
               onChange={(e) => setForm({ ...form, expected_impact: e.target.value })}
@@ -329,9 +382,10 @@ function ChangelogTab({
       </form>
 
       {entries.length === 0 ? (
-        <div className="rounded-lg border border-slate-200 bg-white p-6 text-sm text-slate-500">
-          Sin entradas de changelog.
-        </div>
+        <EmptyState
+          title="Sin entradas de changelog"
+          description="Aún no se han registrado cambios en esta campaña. Usa el formulario de arriba para documentar el primero."
+        />
       ) : (
         <ol className="relative space-y-3 border-l border-slate-200 pl-4">
           {entries.map((e) => (
